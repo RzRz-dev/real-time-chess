@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # 1. In-Memory Database for low-latency game states & clocks
+  db:
+    image: redis:alpine
+    container_name: chess_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - chess-network
+
+  # 2. Java Spring Boot Backend
+  backend:
+    build: ./backend
+    container_name: chess_backend
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app
+      - /app/target     # Prevents your local machine from fighting Docker over compiled Java files
+    environment:
+      - SPRING_REDIS_HOST=db
+      - SPRING_REDIS_PORT=6379
+    depends_on:
+      - db
+    networks:
+      - chess-network
+
+  # 3. React Frontend with pnpm
+  frontend:
+    build: ./frontend
+    container_name: chess_frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Prevents your local machine from overriding container node_modules
+    depends_on:
+      - backend
+    networks:
+      - chess-network
+
+networks:
+  chess-network:
+    driver: bridge
